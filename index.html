@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<link rel="stylesheet" href="style.css">
+<!-- [Cache-Busting Fix] เติม ?v= ท้าย style.css เหมือนกับ app.js เพื่อบังคับ Browser/CDN โหลดไฟล์ใหม่ทันทีหลัง Deploy — เปลี่ยนเลขนี้ทุกครั้งที่แก้ style.css ในอนาคต -->
+<link rel="stylesheet" href="style.css?v=20260825layoutv2">
 </head>
 <body>
 
@@ -88,5 +89,7 @@
 <div class="profile-overlay-bg" id="profileOverlay"><div class="profile-overlay" id="profileOverlayContent"></div></div>
 
 <script src="js/config.js"></script>
+<!-- [Cache-Busting Fix] เติม ?v= ท้าย app.js เพื่อบังคับ Browser/CDN โหลดไฟล์ใหม่ทันทีหลัง Deploy แก้เฉพาะ query string ไม่แตะ Logic/Backend/Schema ใดๆ — เปลี่ยนเลขนี้ทุกครั้งที่แก้ js/app.js ในอนาคต -->
 <script src="js/app.js?v=20260825calfix2" defer></script>
+</body>
 </html>
