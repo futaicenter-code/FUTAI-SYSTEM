@@ -2829,13 +2829,36 @@ async function renderEmployeeDirectory(){
   const employees = Object.values(state._employeeMap || {}).slice().sort((a,b)=> String(a.ID||'').localeCompare(String(b.ID||'')));
   if (!employees.length) { area.innerHTML = `<div class="card">${emptyState('👥','ไม่มีข้อมูลพนักงาน')}</div>`; return; }
 
+  // [ตามที่ระบุ] FT000/CEO แยกออกมาอยู่บนสุด กึ่งกลางหน้าจอ คนเดียว ไม่ปนอยู่ใน Grid หลัก 6 คอลัมน์
+  const ceo = employees.find(e => String(e.ID) === 'FT000' || e['Role'] === 'CEO');
+  const rest = ceo ? employees.filter(e => e !== ceo) : employees;
+
   area.innerHTML = `
     <div class="mb-2">
       <div style="font-size:20px;font-weight:700;font-family:'Prompt';">👥 Employee Directory</div>
       <div class="small text-muted">ทีมงานทั้งหมด ${employees.length} คน</div>
     </div>
-    <div class="dir-grid-flat">${employees.map(e => employeeDirectoryCardHtml(e)).join('')}</div>
+    ${ceo ? employeeDirectoryCeoCardHtml(ceo) : ''}
+    <div class="dir-grid-flat">${rest.map(e => employeeDirectoryCardHtml(e)).join('')}</div>
   `;
+}
+// [ตามที่ระบุ] การ์ด CEO (FT000) พิเศษ — อยู่บนสุดกึ่งกลาง มีอีโมจิมงกุฎเหนือรูป ใต้รูปโชว์ตำแหน่ง (ดึงจากข้อมูลจริง) แล้วอีกบรรทัดเป็นชื่อ
+// ชื่อที่แสดง ("คุณธีรเมธ ปิติโชคเจริญ") ล็อกตายตัวตามที่ระบุมาเป๊ะๆ ไม่ได้ดึงจาก state._employeeMap — ถ้าชื่อเปลี่ยนในอนาคตแก้ค่าคงที่ตัวแปร ceoName ตรงนี้ได้เลย
+function employeeDirectoryCeoCardHtml(e){
+  const initials = getEmployeeDisplayName(e).charAt(0);
+  const role = e['ตำแหน่ง']||'';
+  const ceoName = 'คุณธีรเมธ ปิติโชคเจริญ';
+  return `
+    <div class="dir-ceo-wrap">
+      <div class="dir-ceo-card" onclick="openPublicProfileModal('${e.ID}')">
+        <div class="dir-ceo-crown">👑</div>
+        <div class="dir-photo-square dir-photo-flat dir-ceo-photo">
+          ${driveImgOrAvatar(e['รูป'], initials, 100, 'avatar-100 avatar-100-square', 'ep-photo dir-photo-img', 'square')}
+        </div>
+        <div class="dir-ceo-role">${role}</div>
+        <div class="dir-ceo-name">${ceoName}</div>
+      </div>
+    </div>`;
 }
 // [Employee Directory — Square Photo + Hover Info] รูปใหญ่ขึ้น ทรงสี่เหลี่ยมมุมมน (แทนวงกลมเดิม) คลิกยังเปิดโปรไฟล์เต็มได้เหมือนเดิม (onclick เดิมไม่เปลี่ยน)
 // Hover เมาส์เหนือรูป (ยังไม่คลิก) แสดง Overlay: ชื่อเล่น / แผนก / ตำแหน่ง เท่านั้น ตามที่ระบุ
