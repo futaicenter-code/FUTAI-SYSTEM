@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FWMS - FUTAI Workplace Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="login-page" id="loginPage">
+  <div class="login-card">
+    <div style="text-align:center;margin-bottom:18px;"><div class="brand-mark" style="margin:0 auto;width:50px;height:50px;font-size:18px;">FW</div></div>
+    <h2>FWMS Login</h2>
+    <p class="sub">FUTAI Workplace Management System</p>
+    <div class="login-err" id="loginErr"></div>
+    <input type="text" id="loginId" class="login-input" placeholder="รหัสพนักงาน">
+    <input type="password" id="loginPass" class="login-input" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
+  </div>
+</div>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">FW</div>
+      <div class="brand-name">FWMS<small>FUTAI Workplace</small></div>
+    </div>
+    <nav class="nav" id="navMain">
+      <div class="nav-label">ภาพรวม</div>
+      <button class="nav-item" data-page="home"><span class="nav-ic">🏠</span> หน้าแรก</button>
+      <button class="nav-item" data-page="calendar"><span class="nav-ic">📅</span> ปฏิทินบริษัท</button>
+
+      <div class="nav-label">งานของฉัน</div>
+      <button class="nav-item" data-page="attendance"><span class="nav-ic">⏱</span> เข้า-ออกงาน</button>
+      <button class="nav-item" data-page="leave"><span class="nav-ic">🌴</span> ลา</button>
+      <button class="nav-item" data-page="ot"><span class="nav-ic">🕐</span> OT</button>
+      <button class="nav-item" data-page="payroll"><span class="nav-ic">💰</span> Payroll (เงินเดือน)</button>
+      <button class="nav-item" onclick="openGenericSheet('Task')"><span class="nav-ic">✅</span> งานของฉัน</button>
+      <button class="nav-item" data-page="dataentry" id="navDataEntry" style="display:none;"><span class="nav-ic">📝</span> กรอกข้อมูลผลงาน</button>
+
+      <div class="nav-label">พนักงาน</div>
+      <button class="nav-item" data-page="employeerisk"><span class="nav-ic">⚠️</span> พนักงาน &amp; ความเสี่ยงลาออก</button>
+      <button class="nav-item" onclick="openEmployeeDirectory()"><span class="nav-ic">👤</span> Employee Profile</button>
+
+      <div class="nav-label" id="navMrLabel" style="display:none;">Dashboard</div>
+      <button class="nav-item" data-page="monthlyreport" id="navMonthlyReport" style="display:none;"><span class="nav-ic">📊</span> Dashboard</button>
+
+      <div class="nav-label" id="navSettingsLabel" style="display:none;">ระบบ</div>
+      <button class="nav-item" data-page="healthcheck" id="navHealth" style="display:none;"><span class="nav-ic">🛠</span> ตรวจสอบระบบ</button>
+      <button class="nav-item" data-page="settingshub" id="navSettingsHub" style="display:none;"><span class="nav-ic">⚙️</span> ตั้งค่าระบบ</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="me-card">
+        <div class="avatar" id="meAvatar">-</div>
+        <div class="me-info"><div id="meName">-</div><small id="meRole">-</small></div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <div class="crumb" id="crumb">HOME</div>
+        <h1 id="pageTitle">หน้าแรก</h1>
+      </div>
+      <div class="top-actions">
+        <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <div class="search-box">
+          <input id="searchInput" placeholder="ค้นหา... (พนักงาน/งาน/เอกสาร)" oninput="onSearchInput()">
+          <div class="search-results" id="searchResults"></div>
+        </div>
+        <button class="bell-btn" onclick="toggleNotif()">🔔<div class="bell-badge" id="bellBadge"></div></button>
+        <div class="notif-panel" id="notifPanel"></div>
+      </div>
+    </header>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="modal-bg" id="modal"><div class="modal" id="modalContent"></div></div>
+<div class="profile-overlay-bg" id="profileOverlay"><div class="profile-overlay" id="profileOverlayContent"></div></div>
+
+<script src="js/config.js"></script>
+<script src="js/app.js" defer></script>
+</body>
+</html>
