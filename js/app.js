@@ -134,8 +134,9 @@ function getEmployeeDisplayWithId(employeeOrId){
   return (!id || name === id) ? name : `${name} (${id})`;
 }
 // label จาก getMyWork มีรูปแบบ "... — EMPID" เสมอ (backend ไม่ได้ส่งชื่อมาด้วย) แปลงส่วนท้ายเป็นชื่อผ่าน Helper โดยไม่ต้องแก้ backend
-// [Calendar Display Layer] backend ส่ง title มาเป็น "EmployeeID ลาXXX" — แปลงส่วน ID ให้เป็นชื่อ ไม่แตะ Backend/Logic เลย
-// รูปแบบคงที่จาก getCalendarEvents: r['EmployeeID'] + ' ลา' + ประเภทลา — หาก parse ไม่ได้ fallback เป็นข้อความเดิม กันข้อมูลหาย
+// [Calendar Display Layer] backend ส่ง title มาเป็น "EmployeeID ลาXXX" — แปลงส่วน ID ให้เป็นชื่อ + Normalize ส่วนประเภทลาผ่าน normalizeLeaveTypeLabel() (ตัวเดียวกับที่ใช้ทั้งระบบ) ไม่แตะ Backend/Logic เลย
+// รูปแบบคงที่จาก getCalendarEvents: r['EmployeeID'] + ' ลา' + ประเภทลา — หาก parse ไม่ได้ (ไม่มีช่องว่าง) fallback เป็นข้อความเดิมทั้งหมด กันข้อมูลหาย
+// [Standardize Leave Type — Calendar Fix] ถ้าหา Employee ไม่เจอ (name===id) ก็ยัง fallback คืนค่า title ดิบทั้งก้อนเหมือนพฤติกรรมเดิม (ไม่เปลี่ยน Fallback Path เดิม)
 function humanizeCalendarLeaveTitle_(title){
   if (!title) return title;
   const idx = title.indexOf(' ');
@@ -143,7 +144,7 @@ function humanizeCalendarLeaveTitle_(title){
   const id = title.slice(0, idx);
   const rest = title.slice(idx + 1);
   const name = getEmployeeDisplayName(id);
-  return name === id ? title : (name + ' ' + rest);
+  return name === id ? title : (name + ' ' + normalizeLeaveTypeLabel(rest));
 }
 function humanizeApprovalLabel_(label){
   if (!label) return label;
@@ -460,7 +461,7 @@ async function renderHome(){
       </div>
       <div class="card mb-2">
         <div class="card-title">🌴 ทีมลาวันนี้</div>
-        ${myWork.teamLeaveToday.length? myWork.teamLeaveToday.map(l=>`<div class="small mb-1"><span class="ep-clickable" onclick="openEmployeeProfile('${l.EmployeeID}')">${getEmployeeDisplayName(l.EmployeeID)}</span> - ${l['ประเภทลา']||''}</div>`).join('') : '<div class="helper">ไม่มีใครลาวันนี้</div>'}
+        ${myWork.teamLeaveToday.length? myWork.teamLeaveToday.map(l=>`<div class="small mb-1"><span class="ep-clickable" onclick="openEmployeeProfile('${l.EmployeeID}')">${getEmployeeDisplayName(l.EmployeeID)}</span> - ${normalizeLeaveTypeLabel(l['ประเภทลา'])}</div>`).join('') : '<div class="helper">ไม่มีใครลาวันนี้</div>'}
       </div>
     </div>
     ${!myWork.checkedInToday? '<div class="card mb-2" style="border-color:var(--warn);background:var(--warn-soft);"><b>⏱ วันนี้ยังไม่มีบันทึกเวลาเข้างานของคุณ</b></div>':''}
@@ -531,7 +532,7 @@ async function openApprovalReview(sheetName, recordId, actionType){
       </div>
       ${backdatedHtml}
       <table style="width:100%;margin-bottom:12px;">
-        <tr><td class="text-muted small" style="padding:4px 0;">ประเภทลา</td><td style="text-align:right;font-size:13px;">${record['ประเภทลา']||''}</td></tr>
+        <tr><td class="text-muted small" style="padding:4px 0;">ประเภทลา</td><td style="text-align:right;font-size:13px;">${normalizeLeaveTypeLabel(record['ประเภทลา'])}</td></tr>
         <tr><td class="text-muted small" style="padding:4px 0;">วันที่ลา</td><td style="text-align:right;font-size:13px;">${fmt(record['วันที่เริ่มลา'])} → ${fmt(record['วันที่สิ้นสุด'])} (${record['จำนวนวัน']||0} วัน)</td></tr>
         <tr><td class="text-muted small" style="padding:4px 0;">สิทธิ์คงเหลือ / ใช้ไปแล้ว</td><td style="text-align:right;font-size:13px;">${vacBalance.remaining} / ${vacBalance.used} วัน</td></tr>
         <tr><td class="text-muted small" style="padding:4px 0;">เหตุผล${backdatedHtml?'ลาย้อนหลัง':''}</td><td style="text-align:right;font-size:13px;">${record['เหตุผล']||'—'}</td></tr>
@@ -539,7 +540,7 @@ async function openApprovalReview(sheetName, recordId, actionType){
           ${isImageFile ? `<a href="${fileLink}" target="_blank"><img src="${fileLink}" style="max-width:60px;max-height:60px;border-radius:6px;vertical-align:middle;"></a>` : `<a href="${fileLink}" target="_blank">เปิดไฟล์</a>`}
         </td></tr>` : ''}
       </table>
-      <div class="small text-muted mb-2">ประวัติลาล่าสุดในปีนี้: ${recentLeaves.length? recentLeaves.map(r=>`${r['ประเภทลา']} ${fmt(r['วันที่เริ่มลา'])}`).join(', ') : 'ไม่มี'}</div>
+      <div class="small text-muted mb-2">ประวัติลาล่าสุดในปีนี้: ${recentLeaves.length? recentLeaves.map(r=>`${normalizeLeaveTypeLabel(r['ประเภทลา'])} ${fmt(r['วันที่เริ่มลา'])}`).join(', ') : 'ไม่มี'}</div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button class="btn btn-ghost" onclick="closeModal()">ปิด</button>
         <button class="btn btn-danger" onclick="doApproval('Leave_Request','${recordId}','reject')">ปฏิเสธ</button>
@@ -1666,6 +1667,28 @@ async function saveEditAttendance(recordId){
 // =========================================================
 // LEAVE
 // =========================================================
+// [Standardize Leave Type — 2026-08 Fix] Normalize/รวม Leave Type ตอน "แสดงผล/จัดกลุ่ม" เท่านั้น
+// ไม่แตะค่าที่ Submit/บันทึกจริงลง Sheet และไม่แตะ Backend getLeaveSummary()/computeVacationEntitlement()
+// Canonical: "พักร้อน" (รวม "ลาพักร้อน" เดิม), "ลาป่วย (มีใบรับรองแพทย์)" (รวม "ลาป่วย" เดิม) — ค่าอื่นผ่านตรงๆ ไม่แตะ
+function normalizeLeaveTypeLabel(raw){
+  const t = String(raw||'').trim();
+  if (t === 'ลาพักร้อน' || t === 'พักร้อน') return 'พักร้อน';
+  if (t === 'ลาป่วย') return 'ลาป่วย (มีใบรับรองแพทย์)';
+  return t || 'อื่นๆ';
+}
+// รวมรายการใน balances array (ผลลัพธ์จาก getLeaveSummary()) ตาม Canonical Type — sum entitlement/used/carryover ที่ Backend คำนวณมาแล้ว แล้วคำนวณ remaining ใหม่จากผลรวม (ไม่แตะสูตรคำนวณเดิม แค่รวมตัวเลขที่ได้มา)
+function mergeLeaveBalancesByCanonicalType(balances){
+  const order = []; const map = {};
+  (balances||[]).forEach(b=>{
+    const key = normalizeLeaveTypeLabel(b.leaveType);
+    if (!map[key]) { map[key] = { leaveType:key, entitlement:0, used:0, remaining:0, carryover:0 }; order.push(key); }
+    map[key].entitlement += Number(b.entitlement||0);
+    map[key].used += Number(b.used||0);
+    map[key].carryover += Number(b.carryover||0);
+  });
+  order.forEach(key=>{ map[key].remaining = map[key].entitlement - map[key].used; });
+  return order.map(key=>map[key]);
+}
 async function renderLeave(){
   const [rows, summary, leaveTypes] = await Promise.all([ callGs('list',{sheetName:'Leave_Request'}), callGs('getLeaveSummary',{}), callGs('list',{sheetName:'Leave_Type'}) ]);
   // [PART 1] "รายการลาของฉัน" ต้องเป็นของ User ปัจจุบันเท่านั้น — filter ฝั่ง Frontend ไม่แตะ genericList() เพราะยังต้องใช้ rows เต็ม (ตาม Permission เดิม) สำหรับ "รวมการลา" ด้านล่าง
@@ -1674,7 +1697,7 @@ async function renderLeave(){
     <div class="card mb-2">
       <div class="card-title">สรุปสิทธิ์การลา <span class="hint">อายุงาน ${summary.tenureYears} ปี</span></div>
       <div class="grid grid-3">
-        ${summary.balances.map(b=>`
+        ${mergeLeaveBalancesByCanonicalType(summary.balances).map(b=>`
           <div class="stat">
             <div class="stat-label">${b.leaveType}</div>
             <div class="stat-value" style="color:var(--accent)">${b.remaining}<span class="stat-unit">วัน คงเหลือ</span></div>
@@ -1688,7 +1711,11 @@ async function renderLeave(){
         <div class="card-title">📝 ยื่นลา</div>
         <div class="field"><label>ประเภทการลา</label><select id="lvType">
           <option value="">▼ เลือกประเภทการลา</option>
-          ${leaveTypes.map(t=>`<option value="${t['ชื่อประเภทลา']}">${t['ชื่อประเภทลา']}</option>`).join('')}
+          <!-- [Standardize Leave Type] RULE 4: Dropdown แสดงเฉพาะ 4 ตัวเลือกมาตรฐาน — ตัวเลือก "พักร้อน" ยัง Submit ด้วย value="ลาพักร้อน" เดิม (ไม่เปลี่ยน) เพื่อไม่ให้ Leave Balance/Vacation Calculation เดิมพัง เปลี่ยนแค่ Label ที่ผู้ใช้เห็น -->
+          <option value="ลาพักร้อน">พักร้อน</option>
+          <option value="ลากิจ">ลากิจ</option>
+          <option value="ลาป่วย (มีใบรับรองแพทย์)">ลาป่วย (มีใบรับรองแพทย์)</option>
+          <option value="ลาป่วย (ไม่มีใบรับรองแพทย์)">ลาป่วย (ไม่มีใบรับรองแพทย์)</option>
         </select></div>
         <div class="field-grid">
           <div class="field"><label>วันที่เริ่ม</label><input type="date" id="lvStart" value="${todayStr()}" onchange="updateLeaveDaysPreview()"></div>
@@ -1715,7 +1742,7 @@ async function renderLeave(){
         <div class="card-title">📋 รายการลาของฉัน <span class="hint">${myRows.length} รายการ</span></div>
         <table><thead><tr><th>ประเภท</th><th>วันที่</th><th>จำนวน</th><th>สถานะ</th><th></th></tr></thead>
         <tbody>${myRows.length? myRows.slice().reverse().map(r=>`
-          <tr><td>${r['ประเภทลา']||''} ${leaveBackdatedBadge(r)}</td><td>${fmt(r['วันที่เริ่มลา'])}${r['วันที่เริ่มลา']!==r['วันที่สิ้นสุด']?' → '+fmt(r['วันที่สิ้นสุด']):''}</td>
+          <tr><td>${normalizeLeaveTypeLabel(r['ประเภทลา'])} ${leaveBackdatedBadge(r)}</td><td>${fmt(r['วันที่เริ่มลา'])}${r['วันที่เริ่มลา']!==r['วันที่สิ้นสุด']?' → '+fmt(r['วันที่สิ้นสุด']):''}</td>
           <td>${r['จำนวนวัน']||0} วัน</td><td>${statusBadge(r.Status)}</td>
           <td>${r.Status==='InProgress'?`<button class="btn btn-danger btn-sm" onclick="cancelReq('Leave_Request','${r.RecordID}')">ยกเลิก</button>`:''}</td></tr>
         `).join('') : '<tr><td colspan="5"><div class="helper">ยังไม่มีรายการ</div></td></tr>'}</tbody></table>
@@ -1731,7 +1758,7 @@ function leaveOverviewHtml(rows){
   const approvedRows = rows.filter(r=>r.Status==='Approved');
   const totalDays = approvedRows.reduce((s,r)=>s+Number(r['จำนวนวัน']||0),0);
   const byType = {};
-  approvedRows.forEach(r=>{ const t=r['ประเภทลา']||'อื่นๆ'; byType[t]=(byType[t]||0)+Number(r['จำนวนวัน']||0); });
+  approvedRows.forEach(r=>{ const t=normalizeLeaveTypeLabel(r['ประเภทลา']); byType[t]=(byType[t]||0)+Number(r['จำนวนวัน']||0); });
   const byStatus = {};
   rows.forEach(r=>{ byStatus[r.Status]=(byStatus[r.Status]||0)+1; });
   const uniquePeople = new Set(rows.map(r=>r.EmployeeID)).size;
@@ -2159,7 +2186,10 @@ async function renderCompanyOverviewInto(containerId, yearMonth){
     const s = await callGs('getAttendanceExecutiveSummary', { params:{ yearMonth } });
     const trendLabels = s.trend.map(t=>t.month);
     const bucketE = Object.entries(s.timeBuckets);
-    const leaveTypeE = Object.entries(s.leaveTypeBreakdown);
+    // [Standardize Leave Type] RULE 1: Dashboard ต้องไม่แยก "พักร้อน"/"ลาพักร้อน" หรือ "ลาป่วย" เดิม/ใหม่เป็นคนละแท่งกราฟ — รวมตาม Canonical Type ฝั่ง Frontend (ไม่แตะ Backend getAttendanceExecutiveSummary())
+    const leaveTypeBreakdownMerged = {};
+    Object.entries(s.leaveTypeBreakdown).forEach(([t,c])=>{ const key=normalizeLeaveTypeLabel(t); leaveTypeBreakdownMerged[key]=(leaveTypeBreakdownMerged[key]||0)+Number(c||0); });
+    const leaveTypeE = Object.entries(leaveTypeBreakdownMerged);
     const arrow = (v)=> v>=0 ? `↑ ${v}%` : `↓ ${Math.abs(v)}%`;
     const kpi = (grad, icon, label, value, unit, sub) => `
       <div class="kpi-card">
@@ -2288,7 +2318,7 @@ async function renderPersonnelIndividualInto(containerId, employeeId, yearMonth)
       <div class="card mb-2">
         <div class="card-title">ประวัติการลา <span class="hint">${bundle.leaveHistory.length} รายการ</span></div>
         <table><thead><tr><th>ประเภท</th><th>วันที่</th><th>จำนวน</th><th>สถานะ</th></tr></thead>
-        <tbody>${bundle.leaveHistory.length? bundle.leaveHistory.slice(0,15).map(r=>`<tr><td>${r['ประเภทลา']||''}</td><td>${fmt(r['วันที่เริ่มลา'])}</td><td>${r['จำนวนวัน']||0} วัน</td><td>${statusBadge(r.Status)}</td></tr>`).join('') : '<tr><td colspan="4"><div class="helper">ไม่มีข้อมูล</div></td></tr>'}</tbody></table>
+        <tbody>${bundle.leaveHistory.length? bundle.leaveHistory.slice(0,15).map(r=>`<tr><td>${normalizeLeaveTypeLabel(r['ประเภทลา'])}</td><td>${fmt(r['วันที่เริ่มลา'])}</td><td>${r['จำนวนวัน']||0} วัน</td><td>${statusBadge(r.Status)}</td></tr>`).join('') : '<tr><td colspan="4"><div class="helper">ไม่มีข้อมูล</div></td></tr>'}</tbody></table>
       </div>
     `;
     state.charts.pTrend1 = new Chart(document.getElementById('pTrend1'), {
@@ -2990,11 +3020,11 @@ function renderEmployeeProfileTabBody(){
     area.innerHTML = `
       <div class="card mb-2">
         <div class="card-title">สิทธิ์การลา</div>
-        <div class="grid grid-3">${bundle.leaveSummary.balances.map(b=>`<div class="stat"><div class="stat-label">${b.leaveType}</div><div class="stat-value" style="color:var(--accent)">${b.remaining}<span class="stat-unit">/${b.entitlement} วัน</span></div></div>`).join('')}</div>
+        <div class="grid grid-3">${mergeLeaveBalancesByCanonicalType(bundle.leaveSummary.balances).map(b=>`<div class="stat"><div class="stat-label">${b.leaveType}</div><div class="stat-value" style="color:var(--accent)">${b.remaining}<span class="stat-unit">/${b.entitlement} วัน</span></div></div>`).join('')}</div>
       </div>
       <div class="card" style="padding:0;overflow:auto;"><table>
         <thead><tr><th>ประเภท</th><th>วันที่</th><th>จำนวน</th><th>สถานะ</th></tr></thead>
-        <tbody>${bundle.leaveHistory.length? bundle.leaveHistory.map(r=>`<tr><td>${r['ประเภทลา']||''}</td><td>${fmt(r['วันที่เริ่มลา'])}</td><td>${r['จำนวนวัน']||0} วัน</td><td>${statusBadge(r.Status)}</td></tr>`).join('') : '<tr><td colspan="4"><div class="helper">ไม่มีข้อมูล</div></td></tr>'}</tbody>
+        <tbody>${bundle.leaveHistory.length? bundle.leaveHistory.map(r=>`<tr><td>${normalizeLeaveTypeLabel(r['ประเภทลา'])}</td><td>${fmt(r['วันที่เริ่มลา'])}</td><td>${r['จำนวนวัน']||0} วัน</td><td>${statusBadge(r.Status)}</td></tr>`).join('') : '<tr><td colspan="4"><div class="helper">ไม่มีข้อมูล</div></td></tr>'}</tbody>
       </table></div>`;
   } else if (tab === 'ot') {
     area.innerHTML = `<div class="card" style="padding:0;overflow:auto;"><table>
