@@ -78,7 +78,7 @@
   .dir-photo-img { border:3px solid #fff !important; box-shadow:var(--shadow-soft); }
   /* [Employee Directory — Square Photo + Hover Info] เฉพาะการ์ดหน้า Employee Directory เท่านั้น — รูปใหญ่ขึ้น ทรงสี่เหลี่ยมมุมมน (แทนวงกลม) พอ Hover จะมี Overlay ข้อมูล ชื่อเล่น/แผนก/ตำแหน่ง ซ้อนบนรูป ไม่กระทบ Avatar วงกลมจุดอื่นในระบบ (.avatar-100 / .dir-photo-ring เดิมด้านบนยังอยู่ครบ ไม่มีใครลบ) */
   .avatar-100-square { width:100%; height:100%; border-radius:14px; }
-  .dir-photo-square { width:100%; aspect-ratio:1/1; margin:0; border-radius:14px; padding:0; background:var(--glass-border); position:relative; overflow:hidden; box-shadow:var(--shadow-soft); transition:transform .22s ease, box-shadow .22s ease; }
+  .dir-photo-square { width:100%; aspect-ratio:3/4; margin:0; border-radius:14px; padding:0; background:var(--glass-border); position:relative; overflow:hidden; box-shadow:var(--shadow-soft); transition:transform .22s ease, box-shadow .22s ease; }
   .dir-card:hover .dir-photo-square { transform:scale(1.03); box-shadow:var(--shadow-lift); }
   /* [Bugfix] รูปที่โหลดจริง (<img class="ep-photo ...">) มี .ep-photo กำหนด border-radius:50% ไว้ก่อนแล้ว (ใช้ที่อื่นในระบบ) ถ้าไม่ Override เฉพาะจุดนี้ รูปจะกลายเป็นวงกลมซ้อนอยู่ในกรอบสี่เหลี่ยม ต้องบังคับ border-radius ให้ตรงกับ Container ทุกครั้ง */
   .dir-photo-square img { display:block; border-radius:14px; }
@@ -99,7 +99,7 @@
   @media (max-width:820px){ .dir-row-2col{ grid-template-columns:1fr; gap:16px; } }
   @media (max-width:640px){ .dir-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));} }
   /* [Employee Directory — Layout v2: เรียงตามรหัส ไม่แยกแผนก รูปติดกันไม่มีกรอบ] Grid เดียว 7 คอลัมน์ ไม่มี gap ไม่มีกรอบการ์ด/เงา มุมรูปเหลี่ยมคม — ใช้แทน .dir-grid/.dir-card เดิม (ของเดิมยังอยู่ครบ ไม่ได้ลบ เผื่อใช้จุดอื่น) */
-  .dir-grid-flat { display:grid; grid-template-columns:repeat(7,1fr); gap:0; }
+  .dir-grid-flat { display:grid; grid-template-columns:repeat(6,1fr); gap:0; }
   .dir-card-flat { background:transparent; border:none; border-radius:0; padding:0; box-shadow:none; }
   .dir-card-flat:hover { transform:none; box-shadow:none; }
   .dir-photo-flat { border-radius:0; box-shadow:none; }
@@ -107,7 +107,7 @@
   .dir-photo-flat .avatar-100-square { border-radius:0; }
   .dir-photo-flat img { border-radius:0; }
   @media (max-width:900px){ .dir-grid-flat{ grid-template-columns:repeat(4,1fr); } }
-  @media (max-width:560px){ .dir-grid-flat{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width:560px){ .dir-grid-flat{ grid-template-columns:repeat(2,1fr); } }
   .me-info { font-size:12px; line-height:1.25; min-width:0; color:var(--ink); }
   .me-info small { display:block; color:var(--ink-muted); font-size:10px; }
   .logout-btn { margin-top:6px; width:100%; text-align:center; font-size:10px; color:var(--ink-muted); padding:6px; border-radius:8px; }
