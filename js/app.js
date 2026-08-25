@@ -143,8 +143,12 @@ function humanizeCalendarLeaveTitle_(title){
   if (idx === -1) return title;
   const id = title.slice(0, idx);
   const rest = title.slice(idx + 1);
+  // [Standardize Leave Type — Calendar Fix v2] getCalendarEvents() ใน FWMS_Code.gs บรรทัด 1793 ต่อสตริงเป็น r['EmployeeID'] + ' ลา' + ประเภทลา เสมอ
+  // เท่ากับว่า rest ที่ได้ ณ จุดนี้ = "ลา" (คำนำหน้าคงที่จาก Backend) + ค่าประเภทลาดิบจริง (ซึ่งข้อมูลเดิมส่วนใหญ่ในชีตเก็บเป็น "ลาพักร้อน"/"ลากิจ"/"ลาป่วย" ที่มีคำว่า "ลา" ติดอยู่ในตัวเองอยู่แล้ว)
+  // ต้องตัดคำว่า "ลา" ที่ Backend เติมนำหน้าออกก่อน 1 ชั้น แล้วค่อยส่งค่าที่เหลือ (ประเภทลาจริง) เข้า normalizeLeaveTypeLabel() ไม่งั้นจะกลายเป็น "ลาลาพักร้อน" ไม่ถูก Normalize (พบจากการทดสอบจริงบนเว็บ)
+  const rawType = rest.indexOf('ลา') === 0 ? rest.slice(2) : rest;
   const name = getEmployeeDisplayName(id);
-  return name === id ? title : (name + ' ' + normalizeLeaveTypeLabel(rest));
+  return name === id ? title : (name + ' ' + normalizeLeaveTypeLabel(rawType));
 }
 function humanizeApprovalLabel_(label){
   if (!label) return label;
