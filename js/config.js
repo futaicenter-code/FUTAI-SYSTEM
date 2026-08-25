@@ -7,4 +7,4 @@
 // รูปแบบ: https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXX/exec
 // วิธีหา URL: เปิด FWMS_Code.gs ใน Apps Script Editor -> Deploy -> Manage deployments -> คัดลอก Web app URL
 // (ใช้ Deployment เดิมตัวเดียวกับที่ doGet เดิมเสิร์ฟหน้าเว็บอยู่ตอนนี้ก็ได้ ไม่ต้องสร้างใหม่ เพราะ doPost อยู่ใน Deployment เดียวกัน)
-const API_BASE_URL = 'https://script.google.com/macros/s/PUT_YOUR_DEPLOYMENT_ID_HERE/exec';
+const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbx0AVnVCbMMhV9ypeGb91maRN56rngLcRRNGSgfsMy_71-ztlVZw-HnpvkUtydVmEZt/exec';
