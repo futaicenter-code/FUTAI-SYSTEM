@@ -207,8 +207,9 @@ function driveImgOrAvatar(rawUrl, initials, sizePx, avatarClass, extraImgClass, 
   if (!photo) return `<div class="${avatarClass}">${initials}</div>`;
   const fileId = extractDriveFileId(rawUrl);
   const fallbackUrl = fileId ? driveLh3Url(fileId) : '';
+  // [Directory Layout v2] shape='square' ไม่ใส่ border-radius ใน inline style แล้ว — ให้ Container ด้านนอก (.dir-photo-square/.dir-photo-flat ใน style.css) เป็นตัวคุมมุมมน/มุมเหลี่ยมแทน (overflow:hidden ที่ Container ตัดรูปตามขอบอยู่แล้ว) จะได้สลับปัดมุม/ไม่ปัดมุมได้จาก CSS อย่างเดียว ไม่ต้องมาแก้ JS ทุกครั้ง
   const imgStyle = shape === 'square'
-    ? `width:100%;height:100%;object-fit:cover;border-radius:14px;`
+    ? `width:100%;height:100%;object-fit:cover;`
     : `width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;`;
   return `<img src="${photo}" class="${extraImgClass||''}" style="${imgStyle}" data-fallback="${fallbackUrl}" data-tried="0"
     onerror="if(this.dataset.tried==='0' && this.dataset.fallback){ this.dataset.tried='1'; this.src=this.dataset.fallback; } else { this.outerHTML='<div class=&quot;${avatarClass}&quot;>${initials}</div>'; }">`;
@@ -2823,37 +2824,17 @@ function openEmployeeDirectory(){
 async function renderEmployeeDirectory(){
   const area = document.getElementById('content');
   await ensureEmployeeMapLoaded();
-  // [ตามที่กำหนด] ไม่แสดง FT000/CEO ใน Directory — ไม่กระทบข้อมูล/Role/Department ของพี่หนึ่งเลย แค่ไม่โชว์ในหน้านี้
-  const employees = Object.values(state._employeeMap || {}).filter(e => e['Role'] !== 'CEO' && String(e['ID']) !== 'FT000');
+  // [Directory Layout v2 — ตามที่ระบุใหม่] แสดงทุกคนรวม FT000/CEO ด้วย (ยกเลิกการซ่อนแบบเดิม) เรียงตามรหัสพนักงานจากน้อยไปมาก ไม่แยกแผนก ไม่มีกรอบ/หัวข้อแผนกคั่น
+  // เรียงตามรหัสพนักงานตรงๆ แบบ String compare — รหัสจริงในระบบเป็น "FT" + เลขความกว้างเท่ากันเสมอ (FT000, FT001, ... ) เรียงแบบนี้ตรงกับเรียงตัวเลขพอดี ไม่ต้องแยกเลขออกมาให้ซับซ้อน
+  const employees = Object.values(state._employeeMap || {}).slice().sort((a,b)=> String(a.ID||'').localeCompare(String(b.ID||'')));
   if (!employees.length) { area.innerHTML = `<div class="card">${emptyState('👥','ไม่มีข้อมูลพนักงาน')}</div>`; return; }
-  const byDept = {};
-  const deptOrderSeen = [];
-  employees.forEach(e => { const d = e['แผนก'] || 'อื่นๆ'; if (deptOrderSeen.indexOf(d)===-1) deptOrderSeen.push(d); (byDept[d] = byDept[d] || []).push(e); });
-
-  // [Final Layout Adjustment] ลำดับ Row ตายตัวตามที่กำหนด — คู่ 2 คอลัมน์ 2 แถวแรก จากนั้นเต็มความกว้างทีละแผนก แผนกอื่นที่เหลือ (นอกลิสต์) ต่อท้ายตามลำดับเดิมของระบบ
-  const pairedRows = [['Support & Strategy','Sales'], ['Accounting','Warehouse & Store']];
-  const fullRows = ['Online','Admin','Messenger'];
-  const explicitDepts = [...pairedRows.flat(), ...fullRows];
-  const remainingDepts = deptOrderSeen.filter(d => explicitDepts.indexOf(d) === -1);
-
-  const deptSectionHtml = (d) => byDept[d] ? `
-    <div class="dir-dept-block">
-      <div class="dash-section-title" style="margin-top:0;">${d}</div>
-      <div class="dir-grid">${byDept[d].map(e => employeeDirectoryCardHtml(e)).join('')}</div>
-    </div>` : '';
-
-  const pairedRowsHtml = pairedRows
-    .filter(([l,r]) => byDept[l] || byDept[r])
-    .map(([l,r]) => `<div class="dir-row-2col">${deptSectionHtml(l)}${deptSectionHtml(r)}</div>`).join('');
-  const fullRowsHtml = [...fullRows, ...remainingDepts].map(d => deptSectionHtml(d)).join('');
 
   area.innerHTML = `
     <div class="mb-2">
       <div style="font-size:20px;font-weight:700;font-family:'Prompt';">👥 Employee Directory</div>
       <div class="small text-muted">ทีมงานทั้งหมด ${employees.length} คน</div>
     </div>
-    ${pairedRowsHtml}
-    ${fullRowsHtml}
+    <div class="dir-grid-flat">${employees.map(e => employeeDirectoryCardHtml(e)).join('')}</div>
   `;
 }
 // [Employee Directory — Square Photo + Hover Info] รูปใหญ่ขึ้น ทรงสี่เหลี่ยมมุมมน (แทนวงกลมเดิม) คลิกยังเปิดโปรไฟล์เต็มได้เหมือนเดิม (onclick เดิมไม่เปลี่ยน)
@@ -2864,8 +2845,8 @@ function employeeDirectoryCardHtml(e){
   const dept = e['แผนก']||'';
   const role = e['ตำแหน่ง']||'';
   return `
-    <div class="dir-card" onclick="openPublicProfileModal('${e.ID}')">
-      <div class="dir-photo-square">
+    <div class="dir-card dir-card-flat" onclick="openPublicProfileModal('${e.ID}')">
+      <div class="dir-photo-square dir-photo-flat">
         ${driveImgOrAvatar(e['รูป'], initials, 100, 'avatar-100 avatar-100-square', 'ep-photo dir-photo-img', 'square')}
         <div class="dir-hover-info">
           <div class="dir-hover-name">${nickname}</div>
