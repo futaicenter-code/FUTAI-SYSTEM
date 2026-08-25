@@ -201,12 +201,16 @@ function ensureXlsxLoaded(){
   return _xlsxLoadPromise;
 }
 // สร้าง HTML รูป/avatar พร้อม fallback 2 ชั้น: thumbnail → lh3.googleusercontent → avatar ตัวอักษร (แสดง <img> ทันทีถ้ามี URL ไม่ fallback ตั้งแต่แรก)
-function driveImgOrAvatar(rawUrl, initials, sizePx, avatarClass, extraImgClass){
+// [Employee Directory — Square Photo] เพิ่มพารามิเตอร์ shape (optional) — ไม่ใส่ = พฤติกรรมเดิมเป๊ะ (วงกลม, ขนาดตายตัวตาม sizePx) ใช้เฉพาะจุดที่เรียกด้วย shape='square' เท่านั้น (การ์ด Employee Directory) จุดอื่นในระบบไม่กระทบ
+function driveImgOrAvatar(rawUrl, initials, sizePx, avatarClass, extraImgClass, shape){
   const photo = driveImageUrl(rawUrl);
   if (!photo) return `<div class="${avatarClass}">${initials}</div>`;
   const fileId = extractDriveFileId(rawUrl);
   const fallbackUrl = fileId ? driveLh3Url(fileId) : '';
-  return `<img src="${photo}" class="${extraImgClass||''}" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;" data-fallback="${fallbackUrl}" data-tried="0"
+  const imgStyle = shape === 'square'
+    ? `width:100%;height:100%;object-fit:cover;border-radius:14px;`
+    : `width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;`;
+  return `<img src="${photo}" class="${extraImgClass||''}" style="${imgStyle}" data-fallback="${fallbackUrl}" data-tried="0"
     onerror="if(this.dataset.tried==='0' && this.dataset.fallback){ this.dataset.tried='1'; this.src=this.dataset.fallback; } else { this.outerHTML='<div class=&quot;${avatarClass}&quot;>${initials}</div>'; }">`;
 }
 function fmtMoney(n){ return new Intl.NumberFormat('th-TH',{minimumFractionDigits:0,maximumFractionDigits:0}).format(Number(n)||0); }
@@ -2852,13 +2856,23 @@ async function renderEmployeeDirectory(){
     ${fullRowsHtml}
   `;
 }
+// [Employee Directory — Square Photo + Hover Info] รูปใหญ่ขึ้น ทรงสี่เหลี่ยมมุมมน (แทนวงกลมเดิม) คลิกยังเปิดโปรไฟล์เต็มได้เหมือนเดิม (onclick เดิมไม่เปลี่ยน)
+// Hover เมาส์เหนือรูป (ยังไม่คลิก) แสดง Overlay: ชื่อเล่น / แผนก / ตำแหน่ง เท่านั้น ตามที่ระบุ
 function employeeDirectoryCardHtml(e){
   const initials = getEmployeeDisplayName(e).charAt(0);
+  const nickname = e['ชื่อเล่น']||e['ชื่อจริง']||'';
+  const dept = e['แผนก']||'';
+  const role = e['ตำแหน่ง']||'';
   return `
     <div class="dir-card" onclick="openPublicProfileModal('${e.ID}')">
-      <div class="dir-photo-ring">${driveImgOrAvatar(e['รูป'], initials, 100, 'avatar-100', 'ep-photo dir-photo-img')}</div>
-      <div class="dir-name">${e['ชื่อเล่น']||e['ชื่อจริง']} <span class="dir-id">(${e.ID})</span></div>
-      <div class="dir-role">${e['ตำแหน่ง']||''}</div>
+      <div class="dir-photo-square">
+        ${driveImgOrAvatar(e['รูป'], initials, 100, 'avatar-100 avatar-100-square', 'ep-photo dir-photo-img', 'square')}
+        <div class="dir-hover-info">
+          <div class="dir-hover-name">${nickname}</div>
+          <div class="dir-hover-dept">${dept}</div>
+          <div class="dir-hover-role">${role}</div>
+        </div>
+      </div>
     </div>`;
 }
 function openProfileOverlay(html){ document.getElementById('profileOverlayContent').innerHTML=html; document.getElementById('profileOverlay').classList.add('show'); }
