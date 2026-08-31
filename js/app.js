@@ -1527,6 +1527,19 @@ function isSundayDateStr_(dateStr){
   const p = String(dateStr).split('-').map(Number);
   return new Date(p[0], p[1]-1, p[2]).getDay() === 0;
 }
+// [เพิ่มใหม่ — ตรวจเวลาเข้า/ออกที่ดู "ผิดปกติ"] เกณฑ์ตั้งใจให้ผ่อนปรนกว่าการเช็ค "สาย" ตรงๆ (ซึ่งมี badge สายอยู่แล้ว)
+// จุดประสงค์คือจับข้อมูลที่ดูผิดเพี้ยนจริงๆ เช่น ช่องว่าง หรือกรณีสแกนเข้าซ้ำแล้วเวลาไปตกอยู่ผิดช่อง (เช่น เวลาเช้าไปโผล่ในช่องออกงาน)
+// เข้า: ยอมรับช่วง 06:00–11:00 น. / ออก: ยอมรับช่วง 14:00–23:59 น. — ถ้าเป็นวันหยุด (อาทิตย์/วันหยุดบริษัท) จะไม่ตรวจ เพราะเวลาทำ OT ไม่ตายตัว
+function timeStrToMinutes_(t){
+  const m = String(t||'').match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  return parseInt(m[1],10)*60 + parseInt(m[2],10);
+}
+function isCheckTimeAbnormal_(t, isCheckIn){
+  const mins = timeStrToMinutes_(t);
+  if (mins === null) return true; // ว่าง หรือรูปแบบเวลาแปลกๆ
+  return isCheckIn ? (mins < 360 || mins > 660) : (mins < 840 || mins > 1439);
+}
 async function loadMatrixTable(){
   const employeeId = document.getElementById('matrixEmp').value;
   const yearMonth = document.getElementById('matrixMonth').value;
@@ -1556,12 +1569,22 @@ async function loadMatrixTable(){
             ${data.days.map(d=>{
               const dayOff = isDayOff(d);
               const offLabel = d.isHoliday ? ('หยุด: ' + (d.holidayName||'วันหยุดบริษัท')) : 'หยุด (วันอาทิตย์)';
+              // [เพิ่มใหม่ — ไฮไลต์แดง] เช็คเฉพาะวันทำงานปกติ (ไม่ใช่วันลา/ไม่ใช่วันหยุด) ว่าเวลาเข้า-ออก ว่างหรือดูผิดปกติหรือไม่
+              const checkWorkDay = !d.isLeave && !dayOff;
+              const checkInBad = checkWorkDay && isCheckTimeAbnormal_(d.checkIn, true);
+              const checkOutBad = checkWorkDay && isCheckTimeAbnormal_(d.checkOut, false);
+              const cellCheckIn = d.isLeave ? '—' : (d.checkIn
+                ? (checkInBad ? `<span style="color:var(--danger);font-weight:600;">${d.checkIn}</span>` : d.checkIn)
+                : (checkWorkDay ? '<span style="color:var(--danger);font-weight:600;">ว่าง</span>' : '<span class="text-muted">ว่าง</span>'));
+              const cellCheckOut = d.isLeave ? '—' : (d.checkOut
+                ? (checkOutBad ? `<span style="color:var(--danger);font-weight:600;">${d.checkOut}</span>` : d.checkOut)
+                : (checkWorkDay ? '<span style="color:var(--danger);font-weight:600;">ว่าง</span>' : '<span class="text-muted">ว่าง</span>'));
               return `
               <tr${dayOff && !d.isLeave ? ' style="opacity:.65;"' : ''}>
                 <td>${d.day}</td>
                 <td>${fmt(d.date)}</td>
-                <td>${d.isLeave? '—' : (d.checkIn || '<span class="text-muted">ว่าง</span>')}</td>
-                <td>${d.isLeave? '—' : (d.checkOut || '<span class="text-muted">ว่าง</span>')}</td>
+                <td>${cellCheckIn}</td>
+                <td>${cellCheckOut}</td>
                 <td>${d.isLeave? `<span class="badge badge-info">${d.status}</span>` : (dayOff && !d.checkIn ? `<span class="badge badge-neutral">${offLabel}</span>` : (d.status? attBadge(d.status) : '<span class="badge badge-neutral">ไม่มีข้อมูล</span>'))}</td>
                 <td>${d.lateMinutes||0}</td>
                 <td>${d.deduction? '฿'+fmtMoney(d.deduction) : '—'}</td>
