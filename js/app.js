@@ -1494,6 +1494,7 @@ async function renderAttendanceMatrix(){
   if (!employees.length) { document.getElementById('content').innerHTML = attTabBar('matrix') + '<div class="card"><div class="helper">ยังไม่มีข้อมูลพนักงานในระบบ</div></div>'; return; }
   const savedEmp = state._matrixSelectedEmp || employees[0].ID;
   const savedMonth = state._matrixSelectedMonth || todayStr().slice(0,7);
+  const sundayOff = state._matrixSundayOff !== false; // ค่าเริ่มต้น: นับวันอาทิตย์เป็นวันหยุด
   document.getElementById('content').innerHTML = `
     ${attTabBar('matrix')}
     <div class="card mb-2">
@@ -1502,6 +1503,12 @@ async function renderAttendanceMatrix(){
           ${employees.map(e=>`<option value="${e.ID}" ${e.ID===savedEmp?'selected':''}>${getEmployeeDisplayWithId(e)}</option>`).join('')}
         </select></div>
         <div class="field"><label>เดือน</label><input type="month" id="matrixMonth" value="${savedMonth}" onchange="onMatrixFilterChange()"></div>
+        <div class="field field-wide">
+          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:400;margin-bottom:0;width:auto;">
+            <input type="checkbox" id="matrixSundayOff" style="width:16px;height:16px;padding:0;border:none;background:none;flex:none;" ${sundayOff?'checked':''} onchange="onMatrixFilterChange()">
+            <span>นับวันอาทิตย์เป็นวันหยุด</span>
+          </label>
+        </div>
       </div>
     </div>
     <div id="matrixTableArea"><div class="helper">กำลังโหลด...</div></div>
@@ -1511,24 +1518,34 @@ async function renderAttendanceMatrix(){
 function onMatrixFilterChange(){
   state._matrixSelectedEmp = document.getElementById('matrixEmp').value;
   state._matrixSelectedMonth = document.getElementById('matrixMonth').value;
+  const sundayEl = document.getElementById('matrixSundayOff');
+  if (sundayEl) state._matrixSundayOff = sundayEl.checked;
   loadMatrixTable();
+}
+// วันที่ 'YYYY-MM-DD' → true ถ้าเป็นวันอาทิตย์ (ใช้ปีเดือนวันสร้าง Date ตรงๆ กันปัญหา timezone เพี้ยนจากการ parse เป็น UTC)
+function isSundayDateStr_(dateStr){
+  const p = String(dateStr).split('-').map(Number);
+  return new Date(p[0], p[1]-1, p[2]).getDay() === 0;
 }
 async function loadMatrixTable(){
   const employeeId = document.getElementById('matrixEmp').value;
   const yearMonth = document.getElementById('matrixMonth').value;
+  const sundayOff = state._matrixSundayOff !== false;
   const area = document.getElementById('matrixTableArea');
   if (!yearMonth) { area.innerHTML = '<div class="card"><div class="helper">กรุณาเลือกเดือน</div></div>'; return; }
   area.innerHTML = '<div class="helper">กำลังโหลด...</div>';
   try {
     const data = await callGs('getAttendanceMatrix', { params:{ employeeId, yearMonth } });
+    const isDayOff = d => d.isHoliday || (sundayOff && isSundayDateStr_(d.date));
     const workDays = data.days.filter(d=>!d.isLeave && d.checkIn).length;
     const lateDays = data.days.filter(d=>d.status==='สาย').length;
+    const totalLateMinutes = data.days.reduce((sum,d)=> sum + (Number(d.lateMinutes)||0), 0);
     const leaveDays = data.days.filter(d=>d.isLeave).length;
-    const missingDays = data.days.filter(d=>!d.isLeave && !d.checkIn && !d.checkOut).length;
+    const missingDays = data.days.filter(d=>!d.isLeave && !d.checkIn && !d.checkOut && !isDayOff(d)).length;
     area.innerHTML = `
       <div class="grid grid-4 mb-2">
         <div class="stat"><div class="stat-label">มาทำงาน</div><div class="stat-value">${workDays}<span class="stat-unit">วัน</span></div></div>
-        <div class="stat"><div class="stat-label">มาสาย</div><div class="stat-value" style="color:var(--warn)">${lateDays}<span class="stat-unit">วัน</span></div></div>
+        <div class="stat"><div class="stat-label">มาสาย</div><div class="stat-value" style="color:var(--warn)">${lateDays}<span class="stat-unit">วัน</span></div><div class="small text-muted">รวม ${totalLateMinutes} นาที</div></div>
         <div class="stat"><div class="stat-label">ลา</div><div class="stat-value" style="color:var(--info)">${leaveDays}<span class="stat-unit">วัน</span></div></div>
         <div class="stat"><div class="stat-label">ยังไม่มีข้อมูล</div><div class="stat-value" style="color:var(--danger)">${missingDays}<span class="stat-unit">วัน</span></div></div>
       </div>
@@ -1536,17 +1553,21 @@ async function loadMatrixTable(){
         <table>
           <thead><tr><th>วัน</th><th>วันที่</th><th>เข้า</th><th>ออก</th><th>สถานะ</th><th>สาย(นาที)</th><th>หัก</th><th></th></tr></thead>
           <tbody>
-            ${data.days.map(d=>`
-              <tr>
+            ${data.days.map(d=>{
+              const dayOff = isDayOff(d);
+              const offLabel = d.isHoliday ? ('หยุด: ' + (d.holidayName||'วันหยุดบริษัท')) : 'หยุด (วันอาทิตย์)';
+              return `
+              <tr${dayOff && !d.isLeave ? ' style="opacity:.65;"' : ''}>
                 <td>${d.day}</td>
                 <td>${fmt(d.date)}</td>
                 <td>${d.isLeave? '—' : (d.checkIn || '<span class="text-muted">ว่าง</span>')}</td>
                 <td>${d.isLeave? '—' : (d.checkOut || '<span class="text-muted">ว่าง</span>')}</td>
-                <td>${d.isLeave? `<span class="badge badge-info">${d.status}</span>` : (d.status? attBadge(d.status) : '<span class="badge badge-neutral">ไม่มีข้อมูล</span>')}</td>
+                <td>${d.isLeave? `<span class="badge badge-info">${d.status}</span>` : (dayOff && !d.checkIn ? `<span class="badge badge-neutral">${offLabel}</span>` : (d.status? attBadge(d.status) : '<span class="badge badge-neutral">ไม่มีข้อมูล</span>'))}</td>
                 <td>${d.lateMinutes||0}</td>
                 <td>${d.deduction? '฿'+fmtMoney(d.deduction) : '—'}</td>
                 <td>${d.isLeave? '' : `<button class="btn btn-ghost btn-sm" onclick='openMatrixDayEdit(${JSON.stringify(d)})'>แก้ไข</button>`}</td>
-              </tr>`).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>
