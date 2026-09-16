@@ -362,14 +362,20 @@ async function initAfterLogin(){
     document.getElementById('navSettingsHub').style.display='flex';
   }
 
-  try { state.managedSheets = await callGs('listManagedSheets', {}); } catch(e){ state.managedSheets = []; }
-  try { await ensureEmployeeMapLoaded(); } catch(e){ /* ไม่เป็นไร Helper จะ fallback แสดง ID แทนถ้าโหลดไม่สำเร็จ */ }
-  try {
-    state._dePerms = await callGs('getMyDataEntryPermissions', {});
-    if (state._dePerms.isAdmin || state._dePerms.canSales || state._dePerms.canOnline || state._dePerms.canActivitySummary) {
-      document.getElementById('navDataEntry').style.display='flex';
-    }
-  } catch(e){ state._dePerms = { isAdmin:false, canSales:false, canOnline:false, canActivitySummary:false }; }
+  // [ประสิทธิภาพ — แก้เว็บช้า] เดิม 3 คำขอนี้ยิงทีละอัน (await ต่อกัน) ทำให้เวลาโหลดบวกกันเป็น 3 เท่าของ 1 คำขอ ทั้งที่ไม่ได้ต้องรอผลของกันและกันเลย
+  // เปลี่ยนเป็นยิงพร้อมกันด้วย Promise.all แทน — ผลลัพธ์/การจัดการ error ของแต่ละอันเหมือนเดิมทุกประการ แค่รอพร้อมกันแทนรอทีละอัน
+  await Promise.all([
+    (async () => { try { state.managedSheets = await callGs('listManagedSheets', {}); } catch(e){ state.managedSheets = []; } })(),
+    (async () => { try { await ensureEmployeeMapLoaded(); } catch(e){ /* ไม่เป็นไร Helper จะ fallback แสดง ID แทนถ้าโหลดไม่สำเร็จ */ } })(),
+    (async () => {
+      try {
+        state._dePerms = await callGs('getMyDataEntryPermissions', {});
+        if (state._dePerms.isAdmin || state._dePerms.canSales || state._dePerms.canOnline || state._dePerms.canActivitySummary) {
+          document.getElementById('navDataEntry').style.display='flex';
+        }
+      } catch(e){ state._dePerms = { isAdmin:false, canSales:false, canOnline:false, canActivitySummary:false }; }
+    })()
+  ]);
 
   document.querySelectorAll('.nav-item[data-page]').forEach(b=> b.addEventListener('click', ()=> go(b.dataset.page)));
   refreshNotifBadge();
