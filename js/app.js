@@ -3155,7 +3155,11 @@ async function shiftCalMonth(delta){
 }
 async function drawCalendar(){
   const monthStr = state._calMonth;
-  const events = await callGs('getCalendarEvents', { monthStr });
+  // [เพิ่มใหม่ — ตารางสรุปการลาใต้ปฏิทิน] ยิงพร้อมกับ getCalendarEvents ด้วย Promise.all (ไม่เพิ่มเวลาโหลด) — ถ้าดึงสรุปไม่สำเร็จ ปฏิทินหลักยังทำงานได้ปกติ แค่ตารางสรุปจะว่าง
+  const [events, leaveSummaryList] = await Promise.all([
+    callGs('getCalendarEvents', { monthStr }),
+    callGs('getCalendarLeaveSummary', { monthStr }).catch(()=>[])
+  ]);
   const [y,m] = monthStr.split('-').map(Number);
   const first = new Date(y, m-1, 1);
   const daysInMonth = new Date(y, m, 0).getDate();
@@ -3178,7 +3182,41 @@ async function drawCalendar(){
       <div class="cal-grid mb-1">${['อา','จ','อ','พ','พฤ','ศ','ส'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}</div>
       <div class="cal-grid">${cells}</div>
     </div>
+    ${buildLeaveSummaryTableHtml(leaveSummaryList)}
   `;
+}
+// [เพิ่มใหม่ — สรุปการลาประจำเดือนใต้ปฏิทินบริษัท] Pivot: คอลัมน์ = ประเภทลา (เฉพาะที่มีคนใช้จริงในเดือนที่กำลังดูอยู่), ในแต่ละคอลัมน์แสดงรายชื่อพนักงาน + จำนวนวันรวม
+// ข้อมูลดิบมาจาก getCalendarLeaveSummary() (Backend) ซึ่งกรอง Visibility Scope เดียวกับที่ปฏิทินช่องบนใช้อยู่แล้ว และยึดเดือนตาม "วันที่เริ่มลา" (Convention เดียวกับ getEmployeeMonthlySummary/Payroll ทั้งระบบ)
+// รองรับกด ← ก่อนหน้า/ถัดไป → อัตโนมัติ เพราะ drawCalendar() เรียกฟังก์ชันนี้ใหม่ทุกครั้งที่เปลี่ยนเดือนอยู่แล้ว — รวมยอดตาม Canonical Leave Type ด้วย normalizeLeaveTypeLabel() ตัวเดียวกับที่หน้าอื่นในระบบใช้
+function buildLeaveSummaryTableHtml(list){
+  if (!list || !list.length) {
+    return `<div class="card mt-2"><div class="card-title">📊 สรุปการลาประจำเดือน</div>${emptyState('📊','ไม่มีข้อมูลการลาในเดือนนี้')}</div>`;
+  }
+  const PREFERRED_ORDER = ['พักร้อน','ลากิจ','ลาป่วย (มีใบรับรองแพทย์)','ลาป่วย (ไม่มีใบรับรองแพทย์)'];
+  const grouped = {}; // canonicalLeaveType -> { employeeId: totalDays }
+  const seenTypes = [];
+  list.forEach(item=>{
+    const type = normalizeLeaveTypeLabel(item.leaveType);
+    if (!grouped[type]) { grouped[type] = {}; seenTypes.push(type); }
+    grouped[type][item.employeeId] = (grouped[type][item.employeeId]||0) + Number(item.totalDays||0);
+  });
+  const remaining = seenTypes.filter(t=>PREFERRED_ORDER.indexOf(t)===-1).sort();
+  const columns = PREFERRED_ORDER.filter(t=>seenTypes.indexOf(t)!==-1).concat(remaining);
+  const fmtDays = n => String(Math.round(n*10)/10);
+  const cellsHtml = columns.map(type=>{
+    const entries = Object.entries(grouped[type]).sort((a,b)=>b[1]-a[1]);
+    return `<td style="vertical-align:top;">${entries.map(([empId,days])=>`<div class="small mb-1">${getEmployeeDisplayName(empId)} <b>${fmtDays(days)} วัน</b></div>`).join('')}</td>`;
+  }).join('');
+  return `
+    <div class="card mt-2">
+      <div class="card-title">📊 สรุปการลาประจำเดือน <span class="hint">ใครลาอะไรไปเท่าไหร่ (เฉพาะที่อนุมัติแล้ว)</span></div>
+      <div style="overflow:auto;">
+        <table>
+          <thead><tr><th>ประเภทการลา</th>${columns.map(t=>`<th>${t}</th>`).join('')}</tr></thead>
+          <tbody><tr><td></td>${cellsHtml}</tr></tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 // =========================================================
